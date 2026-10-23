@@ -1,4 +1,5 @@
-import readline from "readline";
+import readline from "node:readline";
+import { stdin as input, stdout as output } from "node:process";
 import {
   addItem,
   getAllItems,
@@ -13,12 +14,23 @@ import {
 
 loadInventoryFromFile();
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
+const rl = readline.createInterface({ input, output });
+const antrean = [];
+const penunggu = [];
+
+rl.on("line", (baris) => {
+  const nilai = baris.trim();
+  if (penunggu.length > 0) penunggu.shift()(nilai);
+  else antrean.push(nilai);
 });
 
-function showMenu() {
+const tanya = (teks) => {
+  process.stdout.write(teks);
+  if (antrean.length > 0) return Promise.resolve(antrean.shift());
+  return new Promise((resolve) => penunggu.push(resolve));
+};
+
+const showMenu = () => {
   console.log(`
 ==============================
 SISTEM INVENTARIS UMKM
@@ -34,93 +46,84 @@ SISTEM INVENTARIS UMKM
 0. Keluar
 ==============================
 `);
-}
+};
 
-function askMenu() {
-  showMenu();
-  rl.question("Pilih menu (0-8): ", (choice) => {
+const askMenu = async () => {
+  while (true) {
+    showMenu();
+    const choice = await tanya("Pilih menu (0-8): ");
+
     switch (choice) {
       case "1":
         getAllItems();
-        return askMenu();
-
-      case "2":
-        rl.question("Masukkan nama barang: ", (name) => {
-          rl.question("Masukkan kategori (Makanan/Minuman/Bahan Baku): ", (category) => {
-            rl.question("Masukkan harga: ", (price) => {
-              rl.question("Masukkan stok: ", (stock) => {
-                rl.question("Masukkan waktu restock terakhir (YYYY-MM-DDTHH:MM:SS, kosongkan jika tidak ada): ", (lastRestock) => {
-                  addItem({
-                    name,
-                    category,
-                    price,
-                    stock,
-                    lastRestock: lastRestock.trim() === "" ? undefined : lastRestock,
-                  });
-                  askMenu();
-                });
-              });
-            });
-          });
-        });
         break;
 
-      case "3":
-        rl.question("Masukkan kode barang: ", (code) => {
-          getItemByCode(code);
-          askMenu();
+      case "2": {
+        const name = await tanya("Masukkan nama barang: ");
+        const category = await tanya("Masukkan kategori (Makanan/Minuman/Bahan Baku): ");
+        const price = await tanya("Masukkan harga: ");
+        const stock = await tanya("Masukkan stok: ");
+        const lastRestock = await tanya("Masukkan waktu restock terakhir (YYYY-MM-DDTHH:MM:SS, kosongkan jika tidak ada): ");
+        addItem({
+          name,
+          category,
+          price,
+          stock,
+          lastRestock: lastRestock === "" ? undefined : lastRestock,
         });
         break;
+      }
 
-      case "4":
-        rl.question("Masukkan kode barang yang ingin diubah: ", (code) => {
-          rl.question("Masukkan harga baru (kosongkan jika tidak diubah): ", (price) => {
-            rl.question("Masukkan stok baru (kosongkan jika tidak diubah): ", (stock) => {
-              const updatedData = {};
-              if (price.trim() !== "") updatedData.price = price;
-              if (stock.trim() !== "") updatedData.stock = stock;
-              updateItem(code, updatedData);
-              askMenu();
-            });
-          });
-        });
+      case "3": {
+        const code = await tanya("Masukkan kode barang: ");
+        getItemByCode(code);
         break;
+      }
 
-      case "5":
-        rl.question("Masukkan kode barang yang ingin dihapus: ", (code) => {
-          deleteItem(code);
-          askMenu();
-        });
+      case "4": {
+        const code = await tanya("Masukkan kode barang yang ingin diubah: ");
+        const price = await tanya("Masukkan harga baru (kosongkan jika tidak diubah): ");
+        const stock = await tanya("Masukkan stok baru (kosongkan jika tidak diubah): ");
+        const updatedData = {};
+        if (price !== "") updatedData.price = price;
+        if (stock !== "") updatedData.stock = stock;
+        updateItem(code, updatedData);
         break;
+      }
 
-      case "6":
-        rl.question("Masukkan nama kategori: ", (category) => {
-          filterByCategory(category);
-          askMenu();
-        });
+      case "5": {
+        const code = await tanya("Masukkan kode barang yang ingin dihapus: ");
+        deleteItem(code);
         break;
+      }
+
+      case "6": {
+        const category = await tanya("Masukkan nama kategori: ");
+        filterByCategory(category);
+        break;
+      }
 
       case "7":
         sortItemsByPrice();
-        askMenu();
         break;
 
-      case "8":
-        stockSummary();
-        askMenu();
+      case "8": {
+        const { totalJenis, totalStok, nilaiStok } = stockSummary();
+        console.log(`Jenis barang : ${totalJenis}`);
+        console.log(`Total stok   : ${totalStok} unit`);
+        console.log(`Nilai stok   : Rp ${nilaiStok.toLocaleString("id-ID")}`);
         break;
+      }
 
       case "0":
         console.log("Keluar dari sistem. Terima kasih!");
         rl.close();
-        break;
+        return;
 
       default:
         console.log("Pilihan tidak valid, coba lagi!");
-        askMenu();
-        break;
     }
-  });
-}
+  }
+};
 
 askMenu();
